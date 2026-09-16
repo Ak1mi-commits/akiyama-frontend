@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Akiyama — Разработчик</title>
+<script src="js/theme-init.js"></script>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/png" href="img/favicon.png">
+</head>
+<body>
+
+<div class="preloader" id="preloader">
+  <svg viewBox="0 0 40 40" class="preloader-logo">
+    <polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke="#00ff88" stroke-width="2"/>
+    <path d="M13 28 L20 12 L27 28 M16 22 L24 22" fill="none" stroke="#00ff88" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <div class="preloader-text">AKIYAMA</div>
+</div>
+
+<canvas id="bgCanvas"></canvas>
+<div class="bg-glow"></div>
+<div class="bg-grid"></div>
+
+<header class="header">
+  <div class="container header-inner">
+    <a href="index.html" class="logo">
+      <svg class="logo-icon" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M13 28 L20 12 L27 28 M16 22 L24 22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="logo-text">AKIYAMA</span>
+    </a>
+
+    <nav class="nav" id="nav">
+      <a href="index.html" class="nav-link" data-i18n="nav_home">🏠 Главная</a>
+      <a href="projects.html" class="nav-link" data-i18n="nav_projects">📁 Проекты</a>
+      <a href="shop.html" class="nav-link" data-i18n="nav_shop">🛒 Магазин</a>
+      <a href="reviews.html" class="nav-link" data-i18n="nav_reviews">💬 Отзывы</a>
+      <a href="contacts.html" class="nav-link" data-i18n="nav_contacts">📬 Контакты</a>
+      <a href="settings.html" class="nav-link" data-i18n="nav_settings">⚙️ Настройки</a>
+    </nav>
+
+    <div class="header-right">
+      <button class="user-btn" id="userBtn">
+        <span id="userIcon">👤</span>
+        <span id="userName" data-i18n="login">Войти</span>
+      </button>
+      <button class="burger" id="burger">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="modal" id="authModal">
+  <div class="modal-content">
+    <button class="modal-close" id="modalClose">✕</button>
+    <div class="modal-tabs">
+      <button class="modal-tab active" data-tab="login" data-i18n="auth_tab_login">Вход</button>
+      <button class="modal-tab" data-tab="register" data-i18n="auth_tab_register">Регистрация</button>
+    </div>
+    <form class="modal-form active" id="loginForm">
+      <h2 class="modal-title" data-i18n="auth_login">🔐 Вход</h2>
+      <label class="modal-label"><span data-i18n="auth_username">Логин</span>
+        <input type="text" id="loginUsername" class="modal-input" required>
+      </label>
+      <label class="modal-label"><span data-i18n="auth_password">Пароль</span>
+        <input type="password" id="loginPassword" class="modal-input" required>
+      </label>
+      <div class="modal-error" id="loginError"></div>
+      <button type="submit" class="modal-submit" data-i18n="auth_login_btn">Войти</button>
+    </form>
+    <form class="modal-form" id="registerForm">
+      <h2 class="modal-title" data-i18n="auth_register">📝 Регистрация</h2>
+      <label class="modal-label"><span data-i18n="auth_username">Логин</span>
+        <input type="text" id="regUsername" class="modal-input" required>
+      </label>
+      <label class="modal-label"><span data-i18n="auth_password">Пароль</span>
+        <input type="password" id="regPassword" class="modal-input" required>
+      </label>
+      <label class="modal-label"><span data-i18n="auth_password2">Подтвердите пароль</span>
+        <input type="password" id="regPassword2" class="modal-input" required>
+      </label>
+      <div class="modal-error" id="regError"></div>
+      <button type="submit" class="modal-submit" data-i18n="auth_register_btn">Зарегистрироваться</button>
+    </form>
+  </div>
+</div>
+
+<main>
+
+  <section class="profile-section">
+    <div class="container">
+      <div class="profile-card">
+        <div class="profile-avatar">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:var(--accent);stop-opacity:1" />
+                <stop offset="100%" style="stop-color:var(--accent2);stop-opacity:1" />
+              </linearGradient>
+            </defs>
+            <polygon points="50,5 90,27 90,73 50,95 10,73 10,27" fill="none" stroke="url(#grad1)" stroke-width="3"/>
+            <path d="M32 70 L50 30 L68 70 M40 55 L60 55" fill="none" stroke="url(#grad1)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="profile-info">
+          <h1 class="profile-name" data-i18n="profile_name">Akiyama</h1>
+          <div class="profile-sub" data-i18n="profile_sub">Александр Туманов</div>
+          <p class="profile-bio" data-i18n="profile_bio">Разработчик · Создатель ХАБ v10.0</p>
+          <div class="profile-socials">
+            <a href="https://t.me/Alexs08i" target="_blank" class="social-link" title="Telegram">✈️</a>
+            <a href="mailto:chhgg2368@gmail.com" class="social-link" title="Email">📧</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="feed-section">
+    <div class="container">
+      <h2 class="section-title" data-i18n="feed_title">📝 Что нового</h2>
+      <div class="feed" id="feed"></div>
+      <button class="load-more" id="loadMore" data-i18n="feed_load_more">Показать ещё</button>
+    </div>
+  </section>
+
+  <section class="achievements-section">
+    <div class="container">
+      <h2 class="section-title" data-i18n="ach_title">🏆 Достижения</h2>
+      <div class="achievements">
+
+        <div class="achievement clickable" id="projectsAchievement">
+          <div class="achievement-icon">📁</div>
+          <div class="achievement-title" data-i18n="ach_projects_title">Выполнено проектов</div>
+          <div class="achievement-desc">
+            <span class="big-num">1</span> <span data-i18n="ach_projects_desc">сложный</span> · <span class="big-num">0</span> <span data-i18n="ach_projects_desc2">простых</span>
+          </div>
+          <div class="achievement-hint" id="projHint" data-i18n="ach_projects_hint">нажми чтобы раскрыть ▾</div>
+          <div class="achievement-details" id="projectsDetails">
+            <div class="detail-item">
+              <span class="detail-badge hard" data-i18n="detail_hard">СЛОЖНЫЙ</span>
+              <span class="detail-name" data-i18n="detail_hub_name">ХАБ v10.0</span>
+              <span class="detail-desc" data-i18n="detail_hub_desc">Портативная система управления, 3000 строк кода</span>
+            </div>
+            <div class="detail-empty" data-i18n="detail_empty">Простые проекты пока отсутствуют</div>
+          </div>
+        </div>
+
+        <div class="achievement">
+          <div class="achievement-icon">⏱️</div>
+          <div class="achievement-title" data-i18n="ach_work_title">Время в работе</div>
+          <div class="achievement-desc">
+            <span class="big-num" id="workDays">0</span> <span data-i18n="ach_work_days">дней</span>
+          </div>
+          <div class="achievement-hint" id="workSince">с 0 г.</div>
+        </div>
+
+        <div class="achievement">
+          <div class="achievement-icon">💬</div>
+          <div class="achievement-title" data-i18n="ach_reviews_title">Отзывы</div>
+          <div class="achievement-desc">
+            <span class="big-num" id="reviewsCount">0</span> <span data-i18n="ach_reviews_count">отзывов</span>
+          </div>
+          <div class="achievement-hint">
+            <span id="avgRating" data-i18n="ach_reviews_none">—</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section class="reviews-section">
+    <div class="container">
+      <h2 class="section-title" data-i18n="reviews_preview_title">💬 Последние отзывы</h2>
+      <div class="reviews-preview" id="reviewsPreview"></div>
+      <div class="projects-all">
+        <a href="reviews.html" class="btn-all" data-i18n="reviews_preview_all">Все отзывы →</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="projects-section">
+    <div class="container">
+      <h2 class="section-title" data-i18n="projects_title">🚀 Мои проекты</h2>
+      <div class="projects-preview">
+        <div class="project-card">
+          <div class="project-icon">🦾</div>
+          <h3 class="project-title" data-i18n="project_hub_title">ХАБ v10.0</h3>
+          <p class="project-desc" data-i18n="project_hub_desc">Портативная система управления на флешке. 3000 строк кода, 11 игр, 12 тем.</p>
+          <a href="projects.html" class="project-link" data-i18n="project_more">Подробнее →</a>
+        </div>
+        <div class="project-card">
+          <div class="project-icon">🌐</div>
+          <h3 class="project-title" data-i18n="project_site_title">Этот сайт</h3>
+          <p class="project-desc" data-i18n="project_site_desc">Личный блог о разработке и проектах. HTML, CSS, JS без фреймворков.</p>
+          <a href="projects.html" class="project-link" data-i18n="project_more">Подробнее →</a>
+        </div>
+      </div>
+      <div class="projects-all">
+        <a href="projects.html" class="btn-all" data-i18n="projects_all">Все проекты →</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="contacts-section">
+    <div class="container">
+      <h2 class="section-title" data-i18n="contacts_title">📬 Связаться со мной</h2>
+      <div class="contact-card">
+        <div class="contact-email">
+          <div class="contact-label" data-i18n="contacts_email">Email:</div>
+          <a href="mailto:chhgg2368@gmail.com" class="contact-value">chhgg2368@gmail.com</a>
+        </div>
+        <div class="contact-socials">
+          <a href="https://t.me/Alexs08i" target="_blank" class="social-btn" data-i18n="contacts_tg">✈️ Telegram: @Alexs08i</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <p data-i18n="footer">© 2026 Akiyama · Made with 🦾</p>
+  </div>
+</footer>
+
+<!-- ========== СКРИПТЫ ========== -->
+<script src="js/api.js"></script>
+<script src="js/posts.js"></script>
+<script src="js/reviews.js"></script>
+<script src="js/accounts.js"></script>
+<script src="js/projects.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

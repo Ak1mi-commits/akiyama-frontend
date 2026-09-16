@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Настройки — Akiyama</title>
+<script src="js/theme-init.js"></script>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/png" href="img/favicon.png">
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+<div class="bg-glow"></div>
+<div class="bg-grid"></div>
+
+<header class="header">
+  <div class="container header-inner">
+    <a href="index.html" class="logo">
+      <svg class="logo-icon" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M13 28 L20 12 L27 28 M16 22 L24 22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="logo-text">AKIYAMA</span>
+    </a>
+
+    <nav class="nav" id="nav">
+      <a href="index.html" class="nav-link" data-i18n="nav_home">🏠 Главная</a>
+      <a href="projects.html" class="nav-link" data-i18n="nav_projects">📁 Проекты</a>
+      <a href="shop.html" class="nav-link" data-i18n="nav_shop">🛒 Магазин</a>
+      <a href="reviews.html" class="nav-link" data-i18n="nav_reviews">💬 Отзывы</a>
+      <a href="contacts.html" class="nav-link" data-i18n="nav_contacts">📬 Контакты</a>
+      <a href="settings.html" class="nav-link" data-i18n="nav_settings">⚙️ Настройки</a>
+    </nav>
+
+    <div class="header-right">
+      <button class="user-btn" id="userBtn">
+        <span id="userIcon">👤</span>
+        <span id="userName" data-i18n="login">Войти</span>
+      </button>
+      <button class="burger" id="burger">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="modal" id="authModal">
+  <div class="modal-content">
+    <button class="modal-close" id="modalClose">✕</button>
+    <div class="modal-tabs">
+      <button class="modal-tab active" data-tab="login" data-i18n="auth_tab_login">Вход</button>
+      <button class="modal-tab" data-tab="register" data-i18n="auth_tab_register">Регистрация</button>
+    </div>
+    <form class="modal-form active" id="loginForm">
+      <h2 class="modal-title" data-i18n="auth_login">🔐 Вход</h2>
+      <label class="modal-label"><span data-i18n="auth_username">Логин</span>
+        <input type="text" id="loginUsername" class="modal-input" required>
+      </label>
+      <label class="modal-label"><span data-i18n="auth_password">Пароль</span>
+        <input type="password" id="loginPassword" class="modal-input" required>
+      </label>
+      <div class="modal-error" id="loginError"></div>
+      <button type="submit" class="modal-submit" data-i18n="auth_login_btn">Войти</button>
+    </form>
+    <form class="modal-form" id="registerForm">
+      <h2 class="modal-title" data-i18n="auth_register">📝 Регистрация</h2>
+      <label class="modal-label"><span data-i18n="auth_username">Логин</span>
+        <input type="text" id="regUsername" class="modal-input" required>
+      </label>
+      <label class="modal-label"><span data-i18n="auth_password">Пароль</span>
+        <input type="password" id="regPassword" class="modal-input" required>
+      </label>
+      <label class="modal-label"><span data-i18n="auth_password2">Подтвердите пароль</span>
+        <input type="password" id="regPassword2" class="modal-input" required>
+      </label>
+      <div class="modal-error" id="regError"></div>
+      <button type="submit" class="modal-submit" data-i18n="auth_register_btn">Зарегистрироваться</button>
+    </form>
+  </div>
+</div>
+
+<main>
+  <section class="settings-section">
+    <div class="container">
+      <h2 class="section-title" data-i18n="settings_title">⚙️ Настройки</h2>
+
+      <div class="settings-block">
+        <div class="settings-block-title">
+          <span data-i18n="settings_theme">🎨 Тема оформления</span>
+          <span class="settings-block-desc" data-i18n="settings_theme_desc">Выбери цветовую схему сайта</span>
+        </div>
+        <div class="theme-grid" id="themeGrid">
+          <button class="theme-card" data-theme="dark">
+            <div class="theme-preview" style="background:#0a0e1a;">
+              <span style="background:#00ff88;"></span>
+              <span style="background:#141a28;"></span>
+              <span style="background:#e8eef5;"></span>
+            </div>
+            <div class="theme-name" data-i18n="theme_dark">Тёмная</div>
+          </button>
+          <button class="theme-card" data-theme="light">
+            <div class="theme-preview" style="background:#f5f7fa;">
+              <span style="background:#00aa66;"></span>
+              <span style="background:#ffffff;"></span>
+              <span style="background:#1a2233;"></span>
+            </div>
+            <div class="theme-name" data-i18n="theme_light">Светлая</div>
+          </button>
+          <button class="theme-card" data-theme="neon">
+            <div class="theme-preview" style="background:#0d0221;">
+              <span style="background:#ff00ff;"></span>
+              <span style="background:#1a0033;"></span>
+              <span style="background:#00ffff;"></span>
+            </div>
+            <div class="theme-name" data-i18n="theme_neon">Неон</div>
+          </button>
+          <button class="theme-card" data-theme="matrix">
+            <div class="theme-preview" style="background:#000000;">
+              <span style="background:#00ff00;"></span>
+              <span style="background:#0a1a0a;"></span>
+              <span style="background:#00cc00;"></span>
+            </div>
+            <div class="theme-name" data-i18n="theme_matrix">Матрица</div>
+          </button>
+          <button class="theme-card" data-theme="sunset">
+            <div class="theme-preview" style="background:#1a0b2e;">
+              <span style="background:#ff6b35;"></span>
+              <span style="background:#2d1b4e;"></span>
+              <span style="background:#ffcc00;"></span>
+            </div>
+            <div class="theme-name" data-i18n="theme_sunset">Закат</div>
+          </button>
+          <button class="theme-card" data-theme="ice">
+            <div class="theme-preview" style="background:#0a1929;">
+              <span style="background:#4dd0e1;"></span>
+              <span style="background:#132f4c;"></span>
+              <span style="background:#e0f7fa;"></span>
+            </div>
+            <div class="theme-name" data-i18n="theme_ice">Ледяная</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="settings-block">
+        <div class="settings-block-title">
+          <span data-i18n="settings_lang">🌍 Язык интерфейса</span>
+          <span class="settings-block-desc" data-i18n="settings_lang_desc">Language / Язык</span>
+        </div>
+        <div class="lang-switch" id="langSwitch">
+          <button class="lang-btn" data-lang="ru">🇷🇺 Русский</button>
+          <button class="lang-btn" data-lang="en">🇬🇧 English</button>
+        </div>
+      </div>
+
+      <div class="settings-block">
+        <div class="settings-block-title">
+          <span data-i18n="settings_effects">✨ Эффекты</span>
+          <span class="settings-block-desc" data-i18n="settings_effects_desc">Анимации и визуальные фишки</span>
+        </div>
+
+        <label class="settings-row">
+          <div>
+            <div class="settings-row-title" data-i18n="opt_particles">Фон с частицами</div>
+            <div class="settings-row-desc" data-i18n="opt_particles_desc">Анимированный canvas-фон</div>
+          </div>
+          <input type="checkbox" class="toggle" id="optParticles" checked>
+        </label>
+
+        <label class="settings-row">
+          <div>
+            <div class="settings-row-title" data-i18n="opt_glow">Свечение элементов</div>
+            <div class="settings-row-desc" data-i18n="opt_glow_desc">Glow-эффект у кнопок и карточек</div>
+          </div>
+          <input type="checkbox" class="toggle" id="optGlow" checked>
+        </label>
+
+        <label class="settings-row">
+          <div>
+            <div class="settings-row-title" data-i18n="opt_anim">Анимации переходов</div>
+            <div class="settings-row-desc" data-i18n="opt_anim_desc">Плавные появления и ховеры</div>
+          </div>
+          <input type="checkbox" class="toggle" id="optAnim" checked>
+        </label>
+
+        <label class="settings-row">
+          <div>
+            <div class="settings-row-title" data-i18n="opt_grid">Сетка на фоне</div>
+            <div class="settings-row-desc" data-i18n="opt_grid_desc">Техно-сетка поверх фона</div>
+          </div>
+          <input type="checkbox" class="toggle" id="optGrid" checked>
+        </label>
+      </div>
+
+      <div class="settings-block">
+        <div class="settings-block-title">
+          <span data-i18n="settings_notif">🔔 Уведомления</span>
+          <span class="settings-block-desc" data-i18n="settings_notif_desc">Всплывающие сообщения</span>
+        </div>
+        <label class="settings-row">
+          <div>
+            <div class="settings-row-title" data-i18n="opt_toasts">Тосты</div>
+            <div class="settings-row-desc" data-i18n="opt_toasts_desc">Показывать "Отзыв добавлен", "Скопировано" и т.д.</div>
+          </div>
+          <input type="checkbox" class="toggle" id="optToasts" checked>
+        </label>
+      </div>
+
+      <div class="settings-block">
+        <div class="settings-block-title">
+          <span data-i18n="settings_data">📦 Данные</span>
+          <span class="settings-block-desc" data-i18n="settings_data_desc">Управление локальным хранилищем</span>
+        </div>
+
+        <div class="settings-actions">
+          <button class="settings-action-btn" id="btnExport" data-i18n="btn_export">📤 Экспорт данных</button>
+          <button class="settings-action-btn" id="btnImport" data-i18n="btn_import">📥 Импорт данных</button>
+          <button class="settings-action-btn danger" id="btnReset" data-i18n="btn_reset">🗑️ Сбросить всё</button>
+        </div>
+
+        <div class="settings-info" id="storageInfo"></div>
+      </div>
+
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <p data-i18n="footer">© 2026 Akiyama · Made with 🦾</p>
+  </div>
+</footer>
+
+<!-- ========== СКРИПТЫ ========== -->
+<script src="js/api.js"></script>
+<script src="js/posts.js"></script>
+<script src="js/reviews.js"></script>
+<script src="js/accounts.js"></script>
+<script src="js/projects.js"></script>
+<script src="js/main.js"></script>
+<script src="js/settings.js"></script>
+</body>
+</html>

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Профиль — Akiyama</title>
+<script src="js/theme-init.js"></script>
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" type="image/png" href="img/favicon.png">
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+<div class="bg-glow"></div>
+<div class="bg-grid"></div>
+
+<header class="header">
+  <div class="container header-inner">
+    <a href="index.html" class="logo">
+      <svg class="logo-icon" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M13 28 L20 12 L27 28 M16 22 L24 22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="logo-text">AKIYAMA</span>
+    </a>
+
+    <nav class="nav" id="nav">
+      <a href="index.html" class="nav-link" data-i18n="nav_home">🏠 Главная</a>
+      <a href="projects.html" class="nav-link" data-i18n="nav_projects">📁 Проекты</a>
+      <a href="shop.html" class="nav-link" data-i18n="nav_shop">🛒 Магазин</a>
+      <a href="reviews.html" class="nav-link" data-i18n="nav_reviews">💬 Отзывы</a>
+      <a href="contacts.html" class="nav-link" data-i18n="nav_contacts">📬 Контакты</a>
+      <a href="settings.html" class="nav-link" data-i18n="nav_settings">⚙️ Настройки</a>
+    </nav>
+
+    <div class="header-right">
+      <button class="user-btn" id="userBtn">
+        <span id="userIcon">👤</span>
+        <span id="userName" data-i18n="login">Войти</span>
+      </button>
+      <button class="burger" id="burger">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="modal" id="authModal">
+  <div class="modal-content">
+    <button class="modal-close" id="modalClose">✕</button>
+    <div class="modal-tabs">
+      <button class="modal-tab active" data-tab="login" data-i18n="auth_tab_login">Вход</button>
+      <button class="modal-tab" data-tab="register" data-i18n="auth_tab_register">Регистрация</button>
+    </div>
+    <form class="modal-form active" id="loginForm">
+      <h2 class="modal-title" data-i18n="auth_login">🔐 Вход</h2>
+      <label class="modal-label"><span data-i18n="auth_username">Логин</span>
+        <input type="text" id="loginUsername" class="modal-input" required>
+      </label>
+      <label class="modal-label"><span data-i18n="auth_password">Пароль</span>
+        <input type="password" id="loginPassword" class="modal-input" required>
+      </label>
+      <div class="modal-error" id="loginError"></div>
+      <button type="submit" class="modal-submit" data-i18n="auth_login_btn">Войти</button>
+    </form>
+    <form class="modal-form" id="registerForm">
+      <h2 class="modal-title" data-i18n="auth_register">📝 Регистрация</h2>
+      <label class="modal-label"><span data-i18n="auth_username">Логин</span>
+        <input type="text" id="regUsername" class="modal-input" required>
+      </label>
+      <label class="modal-label"><span data-i18n="auth_password">Пароль</span>
+        <input type="password" id="regPassword" class="modal-input" required>
+      </label>
+      <label class="modal-label"><span data-i18n="auth_password2">Подтвердите пароль</span>
+        <input type="password" id="regPassword2" class="modal-input" required>
+      </label>
+      <div class="modal-error" id="regError"></div>
+      <button type="submit" class="modal-submit" data-i18n="auth_register_btn">Зарегистрироваться</button>
+    </form>
+  </div>
+</div>
+
+<main>
+  <section class="profile-page-section">
+    <div class="container">
+
+      <!-- НЕ ЗАЛОГИНЕН -->
+      <div class="profile-not-logged" id="profileNotLogged" style="display:none;">
+        <div class="review-empty">
+          <span data-i18n="profile_need_login">Войди в аккаунт чтобы редактировать профиль</span>
+          <button class="btn-all" id="profileLoginBtn" style="margin-top:16px;">
+            <span data-i18n="login">Войти</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ЗАЛОГИНЕН -->
+      <div class="profile-page" id="profilePage" style="display:none;">
+
+        <!-- ШАПКА ПРОФИЛЯ -->
+        <div class="profile-page-header">
+          <div class="profile-page-avatar" id="profilePageAvatar">👤</div>
+          <div class="profile-page-info">
+            <div class="profile-page-name" id="profilePageName">—</div>
+            <div class="profile-page-rank" id="profilePageRank">—</div>
+            <div class="profile-page-points" id="profilePagePoints">—</div>
+          </div>
+        </div>
+
+        <!-- АВАТАРКА -->
+        <div class="settings-block">
+          <div class="settings-block-title">
+            <span data-i18n="profile_avatar_title">🎭 Аватарка</span>
+            <span class="settings-block-desc" data-i18n="profile_avatar_desc">Выбери эмодзи для своего профиля</span>
+          </div>
+          <div class="avatar-picker" id="avatarPicker">
+            <button class="avatar-option" data-emoji="😎">😎</button>
+            <button class="avatar-option" data-emoji="🦾">🦾</button>
+            <button class="avatar-option" data-emoji="👾">👾</button>
+            <button class="avatar-option" data-emoji="🤖">🤖</button>
+            <button class="avatar-option" data-emoji="🐉">🐉</button>
+            <button class="avatar-option" data-emoji="🦊">🦊</button>
+            <button class="avatar-option" data-emoji="🐺">🐺</button>
+            <button class="avatar-option" data-emoji="🦁">🦁</button>
+            <button class="avatar-option" data-emoji="🐯">🐯</button>
+            <button class="avatar-option" data-emoji="🦅">🦅</button>
+            <button class="avatar-option" data-emoji="🐲">🐲</button>
+            <button class="avatar-option" data-emoji="🦈">🦈</button>
+            <button class="avatar-option" data-emoji="💀">💀</button>
+            <button class="avatar-option" data-emoji="👽">👽</button>
+            <button class="avatar-option" data-emoji="🎮">🎮</button>
+            <button class="avatar-option" data-emoji="🚀">🚀</button>
+            <button class="avatar-option" data-emoji="⚡">⚡</button>
+            <button class="avatar-option" data-emoji="🔥">🔥</button>
+            <button class="avatar-option" data-emoji="💎">💎</button>
+            <button class="avatar-option" data-emoji="👑" id="crownOption" style="display:none;">👑</button>
+          </div>
+        </div>
+
+        <!-- ИМЯ -->
+        <div class="settings-block">
+          <div class="settings-block-title">
+            <span data-i18n="profile_name_title">📝 Отображаемое имя</span>
+            <span class="settings-block-desc" data-i18n="profile_name_desc">Как тебя видят другие</span>
+          </div>
+          <input type="text" id="inputDisplayName" class="modal-input" maxlength="20" data-i18n-placeholder="profile_name_ph" placeholder="Введи имя...">
+        </div>
+
+        <!-- BIO -->
+        <div class="settings-block">
+          <div class="settings-block-title">
+            <span data-i18n="profile_bio_title">💬 Bio</span>
+            <span class="settings-block-desc" data-i18n="profile_bio_desc">Короткое описание о себе</span>
+          </div>
+          <textarea id="inputBio" class="modal-input" style="margin:0; width:100%; min-height:80px; resize:vertical;" maxlength="100" data-i18n-placeholder="profile_bio_ph" placeholder="Что-нибудь о себе..."></textarea>
+        </div>
+
+        <!-- СМЕНА ПАРОЛЯ -->
+        <div class="settings-block">
+          <div class="settings-block-title">
+            <span data-i18n="profile_password_title">🔐 Смена пароля</span>
+            <span class="settings-block-desc" data-i18n="profile_password_desc">Оставь пустым если не хочешь менять</span>
+          </div>
+          <input type="password" id="inputOldPassword" class="modal-input" data-i18n-placeholder="profile_old_password_ph" placeholder="Старый пароль" style="margin-bottom:10px;">
+          <input type="password" id="inputNewPassword" class="modal-input" data-i18n-placeholder="profile_new_password_ph" placeholder="Новый пароль (минимум 4 символа)" style="margin-bottom:10px;">
+          <input type="password" id="inputNewPassword2" class="modal-input" data-i18n-placeholder="profile_new_password2_ph" placeholder="Повтори новый пароль">
+        </div>
+
+        <!-- КНОПКИ -->
+        <div class="profile-page-actions">
+          <button class="btn-all" id="btnSaveProfile" data-i18n="profile_save">💾 Сохранить изменения</button>
+          <button class="settings-action-btn danger" id="btnCancelProfile" data-i18n="profile_cancel">Отмена</button>
+        </div>
+
+        <div class="modal-error" id="profileError" style="text-align:center; margin-top:12px;"></div>
+
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <p data-i18n="footer">© 2026 Akiyama · Made with 🦾</p>
+  </div>
+</footer>
+
+<!-- ========== СКРИПТЫ ========== -->
+<script src="js/api.js"></script>
+<script src="js/posts.js"></script>
+<script src="js/reviews.js"></script>
+<script src="js/accounts.js"></script>
+<script src="js/projects.js"></script>
+<script src="js/main.js"></script>
+<script src="js/profile.js"></script>
+</body>
+</html>
