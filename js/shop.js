@@ -1,4 +1,4 @@
-// ========== МАГАЗИН ==========
+// ========== МАГАЗИН (API) ==========
 
 function tr(key, fallback) {
   if (window.t) {
@@ -22,73 +22,35 @@ const SHOP_ITEMS = [
 function itemName(item) { return window.CURRENT_LANG === "en" ? item.name_en : item.name_ru; }
 function itemDesc(item) { return window.CURRENT_LANG === "en" ? item.desc_en : item.desc_ru; }
 
-function getUserShop(login) {
-  if (!login) return { owned: [], activeBadge: null };
-  try {
-    const all = JSON.parse(localStorage.getItem("site_shop") || "{}");
-    return all[login] || { owned: [], activeBadge: null };
-  } catch (e) {
-    return { owned: [], activeBadge: null };
-  }
-}
-
-function saveUserShop(login, data) {
-  if (!login) return;
-  let all = {};
-  try { all = JSON.parse(localStorage.getItem("site_shop") || "{}"); } catch (e) {}
-  all[login] = data;
-  localStorage.setItem("site_shop", JSON.stringify(all));
-}
-
 let shopState = {
   sort: "default",
   filter: "all"
 };
 
-function buyItem(login, item) {
-  const users = accounts.getUsers();
-  const user = users[login];
-  if (!user) return { ok: false, error: tr("shop_error_login", "Войди в аккаунт") };
-
-  const shop = getUserShop(login);
-  if (shop.owned.includes(item.id)) return { ok: false, error: tr("shop_error_owned", "Уже куплено") };
-  if ((user.points || 0) < item.price) return { ok: false, error: tr("shop_error_points", "Мало очков") };
-
-  user.points = (user.points || 0) - item.price;
-  accounts.saveUsers(users);
-
-  shop.owned.push(item.id);
-  saveUserShop(login, shop);
-
-  return { ok: true };
-}
-
-function getVisibleItems(shop) {
+function getVisibleItems(ownedList) {
   let items = [...SHOP_ITEMS];
 
   if (shopState.filter === "owned") {
-    items = items.filter(i => shop.owned.includes(i.id));
+    items = items.filter(i => ownedList.includes(i.id));
   } else if (shopState.filter === "not_owned") {
-    items = items.filter(i => !shop.owned.includes(i.id));
+    items = items.filter(i => !ownedList.includes(i.id));
   }
 
-  if (shopState.sort === "cheap") {
-    items.sort((a, b) => a.price - b.price);
-  } else if (shopState.sort === "expensive") {
-    items.sort((a, b) => b.price - a.price);
-  }
+  if (shopState.sort === "cheap") items.sort((a, b) => a.price - b.price);
+  else if (shopState.sort === "expensive") items.sort((a, b) => b.price - a.price);
 
   return items;
 }
 
-function renderShop() {
+async function renderShop() {
   const grid = document.getElementById("shopGrid");
   const balanceEl = document.getElementById("shopBalance");
   if (!grid) return;
 
   const login = accounts.getCurrentLogin();
-  const shop = login ? getUserShop(login) : { owned: [], activeBadge: null };
   const user = login ? accounts.getCurrentUser() : null;
+  const owned = user ? (user.ownedBadges || []) : [];
+  const active = user ? user.activeBadge : null;
   const pts = user ? (user.points || 0) : 0;
 
   if (balanceEl) {
@@ -97,7 +59,7 @@ function renderShop() {
       : tr("shop_need_login", "Войди в аккаунт, чтобы покупать");
   }
 
-  const items = getVisibleItems(shop);
+  const items = getVisibleItems(owned);
 
   if (!items.length) {
     grid.innerHTML = `<div class="review-empty">${tr("shop_filter_empty", "Ничего не найдено")}</div>`;
@@ -105,9 +67,9 @@ function renderShop() {
   }
 
   grid.innerHTML = items.map(item => {
-    const owned = shop.owned.includes(item.id);
-    const isActive = shop.activeBadge === item.value;
-    const canBuy = login && pts >= item.price && !owned;
+    const isOwned = owned.includes(item.id);
+    const isActive = active === item.value;
+    const canBuy = login && pts >= item.price && !isOwned;
 
     let btnText = "";
     let btnClass = "";
@@ -115,7 +77,7 @@ function renderShop() {
     if (isActive) {
       btnText = tr("shop_active", "✅ Активно");
       btnClass = "shop-btn active";
-    } else if (owned) {
+    } else if (isOwned) {
       btnText = tr("shop_apply", "🎯 Применить");
       btnClass = "shop-btn apply";
     } else if (canBuy) {
@@ -127,7 +89,7 @@ function renderShop() {
     }
 
     return `
-      <div class="shop-card ${owned ? 'owned' : ''} ${isActive ? 'is-active' : ''}" data-id="${item.id}">
+      <div class="shop-card ${isOwned ? 'owned' : ''} ${isActive ? 'is-active' : ''}" data-id="${item.id}">
         <div class="shop-icon">${item.icon}</div>
         <div class="shop-name">${itemName(item)}</div>
         <div class="shop-desc">${itemDesc(item)}</div>
@@ -140,35 +102,44 @@ function renderShop() {
   }).join("");
 
   document.querySelectorAll(".shop-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const item = SHOP_ITEMS.find(i => i.id === btn.dataset.id);
-      if (!item) return;
-
-      const login = accounts.getCurrentLogin();
-      if (!login) {
-        alert(tr("shop_error_login", "Войди в аккаунт чтобы покупать 👆"));
-        return;
-      }
-
-      const shop = getUserShop(login);
-      const owned = shop.owned.includes(item.id);
-
-      if (!owned) {
-        const res = buyItem(login, item);
-        if (!res.ok) {
-          showShopToast("❌ " + res.error);
-          return;
-        }
-      }
-
-      const freshShop = getUserShop(login);
-      freshShop.activeBadge = freshShop.activeBadge === item.value ? null : item.value;
-      saveUserShop(login, freshShop);
-
-      renderShop();
-      showShopToast(tr("shop_applied", "✅ Применено:") + " " + itemName(item));
-    });
+    btn.addEventListener("click", () => handleShopClick(btn));
   });
+}
+
+async function handleShopClick(btn) {
+  const item = SHOP_ITEMS.find(i => i.id === btn.dataset.id);
+  if (!item) return;
+
+  const login = accounts.getCurrentLogin();
+  if (!login) {
+    alert(tr("shop_error_login", "Войди в аккаунт чтобы покупать 👆"));
+    return;
+  }
+
+  const user = accounts.getCurrentUser();
+  const owned = user ? (user.ownedBadges || []) : [];
+
+  // Покупка (если не куплено)
+  if (!owned.includes(item.id)) {
+    const res = await API.post("/shop/buy", { itemId: item.id });
+    if (!res.ok) {
+      showShopToast("❌ " + res.error);
+      return;
+    }
+    accounts.setCurrentUser(res.data);
+  }
+
+  // Применить / снять
+  const res2 = await API.post("/shop/apply", { itemId: item.id });
+  if (!res2.ok) {
+    showShopToast("❌ " + res2.error);
+    return;
+  }
+  accounts.setCurrentUser(res2.data);
+
+  renderShop();
+  if (window.__refreshMenuHeader) window.__refreshMenuHeader();
+  showShopToast(tr("shop_applied", "✅ Применено:") + " " + itemName(item));
 }
 
 function renderShopControls() {
@@ -201,16 +172,14 @@ function renderShopControls() {
   `;
 
   const balance = document.getElementById("shopBalance");
-  if (balance) {
-    balance.insertAdjacentElement("afterend", controls);
-  } else {
+  if (balance) balance.insertAdjacentElement("afterend", controls);
+  else {
     const grid = document.getElementById("shopGrid");
     if (grid) grid.insertAdjacentElement("beforebegin", controls);
   }
 
   const sortSel = document.getElementById("shopSort");
   const filterSel = document.getElementById("shopFilter");
-
   sortSel.value = shopState.sort;
   filterSel.value = shopState.filter;
 
@@ -218,7 +187,6 @@ function renderShopControls() {
     shopState.sort = sortSel.value;
     renderShop();
   });
-
   filterSel.addEventListener("change", () => {
     shopState.filter = filterSel.value;
     renderShop();
@@ -243,7 +211,8 @@ window.addEventListener("langChanged", () => {
   renderShop();
 });
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  await accounts.loadCurrentUser();
   renderShopControls();
   renderShop();
 });

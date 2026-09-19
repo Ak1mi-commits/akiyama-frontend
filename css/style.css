@@ -2254,11 +2254,40 @@ body[data-theme="light"] .profile-name {
 }
 
 @media (max-width: 768px) {
-  .shop-grid { grid-template-columns: repeat(2, 1fr); }
-  .project-full-card { padding: 20px; }
-  .project-full-header { flex-wrap: wrap; }
-  .project-full-icon { font-size: 36px; }
-  .project-full-title { font-size: 18px; }
+shop-grid { grid-template-columns: repeat(2, 1fr); }
+  .project-full-card {
+    padding: 16px;
+  }
+  .project-full-header {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .project-full-icon {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+  }
+  .project-full-info {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .project-full-title {
+    font-size: 17px;
+    word-break: break-word;
+  }
+  .project-full-subtitle {
+    font-size: 13px;
+    word-break: break-word;
+  }
+  .project-difficulty,
+  .project-status {
+    font-size: 10px;
+    padding: 4px 10px;
+  }
+  .project-full-desc {
+    font-size: 14px;
+    line-height: 1.5;
+  }
 }
 /* ========== ФИКС: ФУТЕР НЕ УЛЕТАЕТ ========== */
 body {
