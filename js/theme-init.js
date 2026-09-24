@@ -248,6 +248,11 @@
       admin_post_publish: "📤 Опубликовать",
       admin_post_added: "✅ Пост опубликован!",
       admin_post_error_text: "Текст минимум 5 символов",
+admin_post_image: "Картинка (не обязательно)",
+feed_filter: "Фильтр",
+feed_clear: "✕ Сбросить",
+feed_empty: "Постов нет",
+admin_post_date: "Дата и время публикации",
 
       // ===== МОДАЛКА ВХОДА =====
       auth_login: "🔐 Вход",
@@ -492,6 +497,11 @@
       admin_post_publish: "📤 Publish",
       admin_post_added: "✅ Post published!",
       admin_post_error_text: "Text at least 5 characters",
+admin_post_image: "Image (optional)",
+feed_filter: "Filter",
+feed_clear: "✕ Clear",
+feed_empty: "No posts",
+admin_post_date: "Publication date and time",
 
       // ===== AUTH MODAL =====
       auth_login: "🔐 Login",

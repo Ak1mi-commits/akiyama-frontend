@@ -720,6 +720,17 @@ body::after {
 .projects-section,
 .contacts-section,
 .settings-section { padding: 40px 0 80px; }
+#tagFilterBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
 
 /* ========== ПОСТЫ ========== */
 .feed { display: flex; flex-direction: column; gap: 16px; }
@@ -2883,4 +2894,97 @@ a.review-author:hover {
     height: 30px;
     font-size: 12px;
   }
+}
+/* ========== ПОЛЕ ДАТЫ В АДМИН-ФОРМЕ ========== */
+.admin-post-date-label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.admin-post-date-label span {
+  display: block;
+  font-size: 12px;
+  color: var(--sub);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: bold;
+}
+
+.admin-post-date-input {
+  width: 100%;
+  padding: 11px 14px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  transition: border-color .2s;
+}
+
+.admin-post-date-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 255, 136, .1);
+}
+
+.admin-post-date-input::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
+/* ===== ФИЛЬТР ПО ТЕГАМ ===== */
+.tag-filter-label {
+  font-size: 12px;
+  color: var(--sub);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: bold;
+  margin-right: 6px;
+}
+
+.tag-filter-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.tag-filter-btn:hover {
+  background: var(--accent);
+  color: #000;
+}
+
+.tag-filter-btn.active {
+  background: var(--accent);
+  color: #000;
+  border-color: var(--accent);
+  box-shadow: var(--glow);
+}
+
+.tag-filter-clear {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.tag-filter-clear:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.post-tag {
+  cursor: pointer;
 }

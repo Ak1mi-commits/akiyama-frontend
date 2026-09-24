@@ -5,13 +5,12 @@ function timeAgo(dateString) {
   const diff = Math.floor((now - date) / 1000);
   const en = window.CURRENT_LANG === "en";
 
-  if (diff < 0) return en ? "just now" : "только что";
+  if (diff < 0) return date.toLocaleDateString(en ? "en-US" : "ru-RU", { day: "numeric", month: "long", year: "numeric" });
   if (diff < 60) return en ? "just now" : "только что";
   if (diff < 3600) return en ? Math.floor(diff / 60) + " min ago" : Math.floor(diff / 60) + " мин назад";
   if (diff < 86400) return en ? Math.floor(diff / 3600) + " h ago" : Math.floor(diff / 3600) + " ч назад";
   if (diff < 172800) return en ? "yesterday" : "вчера";
   if (diff < 604800) return en ? Math.floor(diff / 86400) + " d ago" : Math.floor(diff / 86400) + " дн назад";
-
   return date.toLocaleDateString(en ? "en-US" : "ru-RU", { day: "numeric", month: "long" });
 }
 
@@ -42,8 +41,39 @@ function showToast(msg) {
   toast._t = setTimeout(() => toast.classList.remove("show"), 2200);
 }
 
-// ========== КОММЕНТЫ (загружаются с сервера) ==========
-const _commentsCache = {}; // postId -> массив комментов
+// ========== ФИЛЬТР ПО ТЕГАМ ==========
+let _activeTag = null;
+
+function toggleTagFilter(tag) {
+  if (_activeTag === tag) _activeTag = null;
+  else _activeTag = tag;
+  renderFeed();
+}
+
+function renderTagFilterBar() {
+  const bar = document.getElementById("tagFilterBar");
+  if (!bar) return;
+
+  const allTags = new Set();
+  allPosts.forEach(p => (p.tags || []).forEach(t => allTags.add(t)));
+
+  if (!allTags.size) { bar.innerHTML = ""; return; }
+
+  const tags = [...allTags].sort();
+
+  bar.innerHTML = `<span class="tag-filter-label">${tr("feed_filter", "Фильтр")}:</span>` +
+    tags.map(t => `<button class="tag-filter-btn ${_activeTag === t ? "active" : ""}" data-tag="${escapeHtml(t)}">#${escapeHtml(t)}</button>`).join("") +
+    (_activeTag ? `<button class="tag-filter-clear" data-clear="1">${tr("feed_clear", "✕ Сбросить")}</button>` : "");
+
+  bar.querySelectorAll(".tag-filter-btn").forEach(btn => {
+    btn.addEventListener("click", () => toggleTagFilter(btn.dataset.tag));
+  });
+  const clearBtn = bar.querySelector(".tag-filter-clear");
+  if (clearBtn) clearBtn.addEventListener("click", () => { _activeTag = null; renderFeed(); });
+}
+
+// ========== КОММЕНТЫ ==========
+const _commentsCache = {};
 
 async function loadComments(postId) {
   const res = await API.get(`/posts/${postId}/comments`);
@@ -79,12 +109,8 @@ function renderComments(postId) {
 // ========== РЕНДЕР ПОСТА ==========
 function localizePost(post) {
   const en = window.CURRENT_LANG === "en";
-  const text = en
-    ? (post.text_en || post.text_ru || post.text || "")
-    : (post.text_ru || post.text || "");
-  const tags = en
-    ? (post.tags_en || post.tags_ru || post.tags || [])
-    : (post.tags_ru || post.tags || []);
+  const text = en ? (post.text_en || post.text_ru || post.text || "") : (post.text_ru || post.text || "");
+  const tags = en ? (post.tags_en || post.tags_ru || post.tags || []) : (post.tags_ru || post.tags || []);
   return { ...post, text, tags };
 }
 
@@ -97,10 +123,15 @@ function renderPost(post) {
   const commentsCount = comments.length;
   const realLikes = likers.length;
 
+  let imageHtml = "";
+  if (post.image) {
+    imageHtml = `<img src="${post.image}" class="post-image" loading="lazy" alt="">`;
+  }
+
   let tagsHtml = "";
   if (post.tags && post.tags.length) {
     tagsHtml = '<div class="post-tags">' +
-      post.tags.map(t => `<span class="post-tag">#${t}</span>`).join("") +
+      post.tags.map(t => `<span class="post-tag" data-tag="${escapeHtml(t)}">#${escapeHtml(t)}</span>`).join("") +
       '</div>';
   }
 
@@ -119,6 +150,7 @@ function renderPost(post) {
         ${editBtn}
       </div>
       <div class="post-text">${escapeHtml(post.text)}</div>
+      ${imageHtml}
       ${tagsHtml}
       <div class="post-actions">
         <div class="post-action like-btn ${liked ? "liked" : ""}" data-id="${post._id}">
@@ -148,45 +180,53 @@ function renderPost(post) {
 
 // ========== ЗАГРУЗКА ПОСТОВ ==========
 let allPosts = [];
-let shownPosts = 0;
-const POSTS_PER_PAGE = 5;
+
+async function loadPostsFromServer() {
+  const res = await API.get("/posts");
+  if (!res.ok) return false;
+  allPosts = res.data;
+
+  for (const p of allPosts) await loadComments(p._id);
+
+  const allLogins = [];
+  Object.values(_commentsCache).forEach(arr => arr.forEach(c => allLogins.push(c.author)));
+  if (allLogins.length) await accounts.loadUsersBatch(allLogins);
+
+  return true;
+}
+
+function renderFeed() {
+  const feed = document.getElementById("feed");
+  if (!feed) return;
+
+  feed.innerHTML = "";
+
+  let posts = allPosts;
+  if (_activeTag) posts = posts.filter(p => (p.tags || []).includes(_activeTag));
+
+  if (!posts.length) {
+    feed.innerHTML = `<div class="review-empty">${tr("feed_empty", "Постов нет")}</div>`;
+    return;
+  }
+
+  posts.forEach(post => feed.insertAdjacentHTML("beforeend", renderPost(post)));
+  attachHandlers();
+}
 
 async function loadPosts() {
   const feed = document.getElementById("feed");
-  const loadMoreBtn = document.getElementById("loadMore");
   if (!feed) return;
 
-  // Первый раз — грузим с сервера
   if (!allPosts.length) {
-    const res = await API.get("/posts");
-    if (!res.ok) {
+    const ok = await loadPostsFromServer();
+    if (!ok) {
       feed.innerHTML = `<div class="review-empty">Ошибка загрузки постов</div>`;
       return;
     }
-    allPosts = res.data;
-
-    // Предзагружаем комменты ко всем постам
-    for (const p of allPosts) {
-      await loadComments(p._id);
-    }
-
-    // Подтягиваем инфу о юзерах для комментов
-    const allLogins = [];
-    Object.values(_commentsCache).forEach(arr => arr.forEach(c => allLogins.push(c.author)));
-    if (allLogins.length) await accounts.loadUsersBatch(allLogins);
   }
 
-  const nextPosts = allPosts.slice(shownPosts, shownPosts + POSTS_PER_PAGE);
-  nextPosts.forEach(post => {
-    feed.insertAdjacentHTML("beforeend", renderPost(post));
-  });
-  shownPosts += nextPosts.length;
-
-  if (shownPosts >= allPosts.length && loadMoreBtn) {
-    loadMoreBtn.style.display = "none";
-  }
-
-  attachHandlers();
+  renderTagFilterBar();
+  renderFeed();
 }
 
 // ========== ОБРАБОТЧИКИ ==========
@@ -198,19 +238,13 @@ function attachHandlers() {
     btn.addEventListener("click", async function () {
       const id = this.dataset.id;
       const login = accounts.getCurrentLogin();
-      if (!login) {
-        alert(tr("comment_need_login", "Сначала войди через кнопку сверху 👆"));
-        return;
-      }
+      if (!login) { alert(tr("comment_need_login", "Сначала войди через кнопку сверху 👆")); return; }
 
       const countEl = this.querySelector(".like-count");
       const iconEl = this.querySelector(".like-icon");
 
       const res = await API.post(`/posts/${id}/like`);
-      if (!res.ok) {
-        showToast("❌ " + res.error);
-        return;
-      }
+      if (!res.ok) { showToast("❌ " + res.error); return; }
 
       const likers = res.data.likes;
       const liked = likers.includes(login);
@@ -218,7 +252,6 @@ function attachHandlers() {
       iconEl.textContent = liked ? "❤️" : "🤍";
       countEl.textContent = likers.length;
 
-      // Обновляем локальный пост
       const post = allPosts.find(p => p._id === id);
       if (post) post.likes = likers;
     });
@@ -253,22 +286,14 @@ function attachHandlers() {
       if (!text) return;
 
       const current = accounts.getCurrentLogin();
-      if (!current) {
-        alert(tr("comment_need_login", "Сначала войди через кнопку сверху 👆"));
-        return;
-      }
+      if (!current) { alert(tr("comment_need_login", "Сначала войди через кнопку сверху 👆")); return; }
 
       const res = await API.post(`/posts/${id}/comments`, { text });
-      if (!res.ok) {
-        showToast("❌ " + res.error);
-        return;
-      }
+      if (!res.ok) { showToast("❌ " + res.error); return; }
 
-      // Обновляем кэш и рендерим
       if (!_commentsCache[id]) _commentsCache[id] = [];
       _commentsCache[id].push(res.data);
 
-      // Обновляем свой профиль (очки)
       await accounts.loadCurrentUser();
       if (window.__refreshMenuHeader) window.__refreshMenuHeader();
 
@@ -298,6 +323,10 @@ function attachHandlers() {
     });
   });
 
+  document.querySelectorAll(".post-tag").forEach(tagEl => {
+    tagEl.addEventListener("click", () => toggleTagFilter(tagEl.dataset.tag));
+  });
+
   document.querySelectorAll(".post-edit-btn").forEach(btn => {
     if (btn.dataset.bound === "1") return;
     btn.dataset.bound = "1";
@@ -309,7 +338,24 @@ function attachHandlers() {
   });
 }
 
-// ========== АДМИН-ПАНЕЛЬ ПОСТОВ ==========
+// ========== ХЕЛПЕР: дата ==========
+function toLocalDateTimeInput(date) {
+  const d = new Date(date);
+  const pad = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// ========== ХЕЛПЕР: файл → base64 ==========
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ========== АДМИН-ПАНЕЛЬ ==========
 function initAdminPanel() {
   const feedSection = document.querySelector(".feed-section .container");
   if (!feedSection) return;
@@ -324,41 +370,69 @@ function initAdminPanel() {
     <h3 class="admin-post-title">${tr("admin_create_post", "⚡ Создать пост (админ)")}</h3>
     <textarea id="newPostText" placeholder="${tr("admin_post_ph", "Что нового?")}" maxlength="1000"></textarea>
     <input type="text" id="newPostTags" placeholder="${tr("admin_post_tags_ph", "Теги через запятую")}">
+    <label class="admin-post-date-label">
+      <span>${tr("admin_post_date", "Дата и время публикации")}</span>
+      <input type="datetime-local" id="newPostDate" class="admin-post-date-input">
+    </label>
+    <label class="admin-post-date-label">
+      <span>${tr("admin_post_image", "Картинка (не обязательно)")}</span>
+      <input type="file" id="newPostImage" accept="image/*" class="admin-post-date-input">
+    </label>
+    <div id="newPostPreview"></div>
     <button id="newPostBtn" class="admin-post-btn">${tr("admin_post_publish", "📤 Опубликовать")}</button>
     <div class="admin-post-error" id="newPostError"></div>
   `;
   const h2 = feedSection.querySelector(".section-title");
   if (h2) h2.insertAdjacentElement("afterend", form);
 
+  const dateInput = document.getElementById("newPostDate");
+  dateInput.value = toLocalDateTimeInput(new Date());
+
+  let _pendingImage = null;
+
+  document.getElementById("newPostImage").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) { _pendingImage = null; document.getElementById("newPostPreview").innerHTML = ""; return; }
+    if (file.size > 800 * 1024) {
+      alert("Картинка больше 800 КБ. Сожми её.");
+      e.target.value = "";
+      _pendingImage = null;
+      return;
+    }
+    _pendingImage = await fileToBase64(file);
+    document.getElementById("newPostPreview").innerHTML =
+      `<img src="${_pendingImage}" style="max-width:200px;border-radius:8px;margin:10px 0;">`;
+  });
+
   document.getElementById("newPostBtn").addEventListener("click", async () => {
     const textEl = document.getElementById("newPostText");
     const tagsEl = document.getElementById("newPostTags");
+    const dateEl = document.getElementById("newPostDate");
     const errEl = document.getElementById("newPostError");
     const text = textEl.value.trim();
     const tagsRaw = tagsEl.value.trim();
+    const dateValue = dateEl.value;
     errEl.textContent = "";
 
-    if (text.length < 5) {
-      errEl.textContent = tr("admin_post_error_text", "Текст минимум 5 символов");
-      return;
-    }
-    const tags = tagsRaw ? tagsRaw.split(",").map(t => t.trim()).filter(Boolean) : [];
+    if (text.length < 5) { errEl.textContent = tr("admin_post_error_text", "Текст минимум 5 символов"); return; }
 
-    const res = await API.post("/posts", { text, tags });
-    if (!res.ok) {
-      errEl.textContent = "❌ " + res.error;
-      return;
-    }
+    const tags = tagsRaw ? tagsRaw.split(",").map(t => t.trim()).filter(Boolean) : [];
+    const date = dateValue ? new Date(dateValue).toISOString() : new Date().toISOString();
+
+    const res = await API.post("/posts", { text, tags, date, image: _pendingImage });
+    if (!res.ok) { errEl.textContent = "❌ " + res.error; return; }
 
     textEl.value = "";
     tagsEl.value = "";
+    dateEl.value = toLocalDateTimeInput(new Date());
+    document.getElementById("newPostImage").value = "";
+    document.getElementById("newPostPreview").innerHTML = "";
+    _pendingImage = null;
 
-    // Перезагружаем все посты
-    allPosts = [];
-    shownPosts = 0;
-    const feed = document.getElementById("feed");
-    if (feed) feed.innerHTML = "";
-    loadPosts();
+    await loadPostsFromServer();
+    renderTagFilterBar();
+    renderFeed();
+
     window.scrollTo({ top: 0, behavior: "smooth" });
     showToast(tr("admin_post_added", "✅ Пост опубликован!"));
   });
@@ -384,6 +458,15 @@ function openPostEditor(post) {
         <span>${tr("admin_post_tags", "Теги через запятую")}</span>
         <input type="text" id="editPostTags" class="modal-input" value="${escapeHtml((post.tags || []).join(", "))}">
       </label>
+      <label class="modal-label">
+        <span>${tr("admin_post_date", "Дата и время публикации")}</span>
+        <input type="datetime-local" id="editPostDate" class="modal-input" value="${toLocalDateTimeInput(post.date)}">
+      </label>
+      <label class="modal-label">
+        <span>${tr("admin_post_image", "Картинка")}</span>
+        <input type="file" id="editPostImage" accept="image/*" class="modal-input">
+      </label>
+      <div id="editPostPreview">${post.image ? `<img src="${post.image}" style="max-width:200px;border-radius:8px;margin:10px 0;">` : ""}</div>
       <div class="modal-error" id="postEditError"></div>
       <div style="display:flex; gap:10px; margin-top:8px;">
         <button class="admin-post-btn" id="postEditSave" style="flex:1;">💾 ${tr("profile_save", "Сохранить")}</button>
@@ -397,23 +480,35 @@ function openPostEditor(post) {
   document.getElementById("postEditClose").addEventListener("click", close);
   modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
 
+  let _newImage = post.image || null;
+
+  document.getElementById("editPostImage").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 800 * 1024) { alert("Картинка больше 800 КБ"); return; }
+    _newImage = await fileToBase64(file);
+    document.getElementById("editPostPreview").innerHTML =
+      `<img src="${_newImage}" style="max-width:200px;border-radius:8px;margin:10px 0;">`;
+  });
+
   document.getElementById("postEditSave").addEventListener("click", async () => {
     const text = document.getElementById("editPostText").value.trim();
     const tagsRaw = document.getElementById("editPostTags").value.trim();
+    const dateValue = document.getElementById("editPostDate").value;
     const errEl = document.getElementById("postEditError");
     errEl.textContent = "";
     if (text.length < 5) { errEl.textContent = tr("admin_post_error_text", "Текст минимум 5 символов"); return; }
 
     const tags = tagsRaw ? tagsRaw.split(",").map(t => t.trim()).filter(Boolean) : [];
-    const res = await API.put(`/posts/${post._id}`, { text, tags });
+    const date = dateValue ? new Date(dateValue).toISOString() : post.date;
+
+    const res = await API.put(`/posts/${post._id}`, { text, tags, date, image: _newImage });
     if (!res.ok) { errEl.textContent = "❌ " + res.error; return; }
 
     close();
-    allPosts = [];
-    shownPosts = 0;
-    const feed = document.getElementById("feed");
-    if (feed) feed.innerHTML = "";
-    loadPosts();
+    await loadPostsFromServer();
+    renderTagFilterBar();
+    renderFeed();
     showToast(tr("admin_post_updated", "✅ Пост обновлён!"));
   });
 
@@ -422,16 +517,14 @@ function openPostEditor(post) {
     const res = await API.del(`/posts/${post._id}`);
     if (!res.ok) { showToast("❌ " + res.error); return; }
     close();
-    allPosts = [];
-    shownPosts = 0;
-    const feed = document.getElementById("feed");
-    if (feed) feed.innerHTML = "";
-    loadPosts();
+    await loadPostsFromServer();
+    renderTagFilterBar();
+    renderFeed();
     showToast(tr("admin_post_deleted", "🗑️ Пост удалён"));
   });
 }
 
-// ========== СКРОЛЛ К ПОСТУ ==========
+// ========== СКРОЛЛ / БУРГЕР / МЕНЮ ==========
 function scrollToHashPost() {
   const hash = window.location.hash;
   if (!hash || !hash.startsWith("#post-")) return;
@@ -444,7 +537,6 @@ function scrollToHashPost() {
   }, 300);
 }
 
-// ========== БУРГЕР ==========
 function initBurger() {
   const burger = document.getElementById("burger");
   const nav = document.getElementById("nav");
@@ -455,7 +547,6 @@ function initBurger() {
   });
 }
 
-// ========== АКТИВНАЯ ВКЛАДКА ==========
 function initActiveNav() {
   const path = window.location.pathname.split("/").pop() || "index.html";
   document.querySelectorAll(".nav .nav-link").forEach(link => {
@@ -465,7 +556,6 @@ function initActiveNav() {
   });
 }
 
-// ========== АВТОРИЗАЦИЯ + МЕНЮ ==========
 function initAuthModal() {
   const userBtn = document.getElementById("userBtn");
   const modal = document.getElementById("authModal");
@@ -490,33 +580,20 @@ function initAuthModal() {
     wrap.innerHTML = `
       <div class="user-menu" id="userMenu">
         <div class="user-menu-header" id="userMenuHeader"></div>
-        <button class="user-menu-item" id="menuProfile">
-          <span class="menu-icon">👤</span>
-          <span data-i18n="menu_profile">Настройки профиля</span>
-        </button>
-        <button class="user-menu-item danger" id="menuLogout">
-          <span class="menu-icon">🚪</span>
-          <span data-i18n="menu_logout">Выйти</span>
-        </button>
+        <button class="user-menu-item" id="menuProfile"><span class="menu-icon">👤</span><span data-i18n="menu_profile">Настройки профиля</span></button>
+        <button class="user-menu-item danger" id="menuLogout"><span class="menu-icon">🚪</span><span data-i18n="menu_logout">Выйти</span></button>
       </div>
     `;
     userBtn.parentNode.insertBefore(wrap, userBtn);
     wrap.appendChild(userBtn);
     userMenu = document.getElementById("userMenu");
 
-    document.getElementById("menuProfile").addEventListener("click", () => {
-      window.location.href = "profile.html";
+    document.getElementById("menuProfile").addEventListener("click", () => { window.location.href = "profile.html"; });
+    document.getElementById("menuLogout").addEventListener("click", () => { accounts.logoutUser(); location.reload(); });
+    if (window.t) wrap.querySelectorAll("[data-i18n]").forEach(el => {
+      const v = window.t(el.dataset.i18n);
+      if (v !== el.dataset.i18n) el.textContent = v;
     });
-    document.getElementById("menuLogout").addEventListener("click", () => {
-      accounts.logoutUser();
-      location.reload();
-    });
-    if (window.t) {
-      wrap.querySelectorAll("[data-i18n]").forEach(el => {
-        const v = window.t(el.dataset.i18n);
-        if (v !== el.dataset.i18n) el.textContent = v;
-      });
-    }
   }
 
   function refreshMenuHeader() {
@@ -530,23 +607,16 @@ function initAuthModal() {
     const prog = accounts.getRankProgress(pts);
     const en = window.CURRENT_LANG === "en";
     const rankName = en ? (rank.name_en || rank.name_ru) : rank.name_ru;
-
     let progressHtml = "";
     if (prog.next) {
       const nextName = en ? (prog.next.name_en || prog.next.name_ru) : prog.next.name_ru;
       progressHtml = `
-        <div class="user-menu-progress">
-          <div class="user-menu-progress-bar" style="width:${prog.percent}%"></div>
-        </div>
+        <div class="user-menu-progress"><div class="user-menu-progress-bar" style="width:${prog.percent}%"></div></div>
         <div class="user-menu-progress-text">${pts} / ${prog.next.min} → ${prog.next.icon} ${nextName}</div>
       `;
     } else {
-      progressHtml = `
-        <div class="user-menu-progress"><div class="user-menu-progress-bar" style="width:100%"></div></div>
-        <div class="user-menu-progress-text">MAX 🏆</div>
-      `;
+      progressHtml = `<div class="user-menu-progress"><div class="user-menu-progress-bar" style="width:100%"></div></div><div class="user-menu-progress-text">MAX 🏆</div>`;
     }
-
     header.innerHTML = `
       <div class="user-menu-name">👤 ${login}</div>
       <div class="user-menu-rank">${rank.icon} ${rankName}</div>
@@ -558,8 +628,7 @@ function initAuthModal() {
   function refreshUserBtn() {
     const login = accounts.getCurrentLogin();
     if (login) {
-      const name = accounts.getDisplayName(login);
-      userName.textContent = name;
+      userName.textContent = accounts.getDisplayName(login);
       userIcon.textContent = "👤";
       userBtn.classList.add("logged-in");
     } else {
@@ -570,25 +639,17 @@ function initAuthModal() {
   }
 
   function refreshMenuLang() {
-    const menuProfile = document.getElementById("menuProfile");
-    const menuLogout = document.getElementById("menuLogout");
-    if (menuProfile) {
-      const span = menuProfile.querySelector("span:last-child");
-      if (span) span.textContent = tr("menu_profile", "Настройки профиля");
-    }
-    if (menuLogout) {
-      const span = menuLogout.querySelector("span:last-child");
-      if (span) span.textContent = tr("menu_logout", "Выйти");
-    }
+    const p = document.getElementById("menuProfile");
+    const l = document.getElementById("menuLogout");
+    if (p) { const s = p.querySelector("span:last-child"); if (s) s.textContent = tr("menu_profile", "Настройки профиля"); }
+    if (l) { const s = l.querySelector("span:last-child"); if (s) s.textContent = tr("menu_logout", "Выйти"); }
   }
 
   function closeMenu() { if (userMenu) userMenu.classList.remove("open"); }
 
   document.addEventListener("click", (e) => {
     if (!userMenu) return;
-    if (userMenu.classList.contains("open")) {
-      if (!userMenu.contains(e.target) && !userBtn.contains(e.target)) closeMenu();
-    }
+    if (userMenu.classList.contains("open") && !userMenu.contains(e.target) && !userBtn.contains(e.target)) closeMenu();
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMenu(); });
 
@@ -597,27 +658,20 @@ function initAuthModal() {
   userBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     const login = accounts.getCurrentLogin();
-    if (login) {
-      refreshMenuHeader();
-      userMenu.classList.toggle("open");
-    } else {
-      modal.classList.add("open");
-    }
+    if (login) { refreshMenuHeader(); userMenu.classList.toggle("open"); }
+    else modal.classList.add("open");
   });
 
   closeBtn.addEventListener("click", () => modal.classList.remove("open"));
   modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.remove("open"); });
 
-  tabs.forEach(tab => {
-    tab.addEventListener("click", () => {
-      tabs.forEach(t => t.classList.remove("active"));
-      tab.classList.add("active");
-      const target = tab.dataset.tab;
-      document.querySelectorAll(".modal-form").forEach(f => f.classList.remove("active"));
-      if (target === "login") loginForm.classList.add("active");
-      else registerForm.classList.add("active");
-    });
-  });
+  tabs.forEach(tab => tab.addEventListener("click", () => {
+    tabs.forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    document.querySelectorAll(".modal-form").forEach(f => f.classList.remove("active"));
+    if (tab.dataset.tab === "login") loginForm.classList.add("active");
+    else registerForm.classList.add("active");
+  }));
 
   registerForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -626,10 +680,8 @@ function initAuthModal() {
     const p = document.getElementById("regPassword").value;
     const p2 = document.getElementById("regPassword2").value;
     if (p !== p2) return (regError.textContent = "Пароли не совпадают");
-
     const result = await accounts.registerUser(u, p);
     if (!result.ok) return (regError.textContent = result.error);
-
     modal.classList.remove("open");
     registerForm.reset();
     location.reload();
@@ -653,7 +705,6 @@ function initAuthModal() {
   window.__refreshMenuHeader = refreshMenuHeader;
 }
 
-// ========== ДОСТИЖЕНИЕ ==========
 function initProjectsAchievement() {
   const card = document.getElementById("projectsAchievement");
   const details = document.getElementById("projectsDetails");
@@ -661,15 +712,12 @@ function initProjectsAchievement() {
   card.addEventListener("click", () => {
     details.classList.toggle("open");
     const hint = card.querySelector(".achievement-hint");
-    if (hint) {
-      hint.textContent = details.classList.contains("open")
-        ? tr("ach_projects_hint_open", "нажми чтобы скрыть ▴")
-        : tr("ach_projects_hint", "нажми чтобы раскрыть ▾");
-    }
+    if (hint) hint.textContent = details.classList.contains("open")
+      ? tr("ach_projects_hint_open", "нажми чтобы скрыть ▴")
+      : tr("ach_projects_hint", "нажми чтобы раскрыть ▾");
   });
 }
 
-// ========== ДНИ В РАБОТЕ ==========
 function initWorkDays() {
   const daysEl = document.getElementById("workDays");
   const sinceEl = document.getElementById("workSince");
@@ -679,12 +727,9 @@ function initWorkDays() {
   const days = Math.max(1, Math.floor((now - start) / 86400000));
   const en = window.CURRENT_LANG === "en";
   daysEl.textContent = days;
-  sinceEl.textContent = tr("ach_work_since", "с") + " " + start.toLocaleDateString(en ? "en-US" : "ru-RU", {
-    day: "numeric", month: "long", year: "numeric"
-  });
+  sinceEl.textContent = tr("ach_work_since", "с") + " " + start.toLocaleDateString(en ? "en-US" : "ru-RU", { day: "numeric", month: "long", year: "numeric" });
 }
 
-// ========== АВТООБНОВЛЕНИЕ ДОСТИЖЕНИЙ ==========
 async function updateProjectsAchievement() {
   const detailList = document.getElementById("projectsDetails");
   if (!detailList) return;
@@ -696,30 +741,16 @@ async function updateProjectsAchievement() {
   const projects = res.data;
   const hard = projects.filter(p => p.difficulty === "hard");
   const easy = projects.filter(p => p.difficulty === "easy");
-
   nums[0].textContent = hard.length;
   if (nums[1]) nums[1].textContent = easy.length;
 
   let html = "";
-  hard.forEach(p => {
-    html += `<div class="detail-item">
-      <span class="detail-badge hard">${tr("detail_hard", "СЛОЖНЫЙ")}</span>
-      <span class="detail-name">${escapeHtml(p.title)}</span>
-      <span class="detail-desc">${escapeHtml(p.subtitle || "")}</span>
-    </div>`;
-  });
-  easy.forEach(p => {
-    html += `<div class="detail-item">
-      <span class="detail-badge easy">${tr("detail_easy", "ПРОСТОЙ")}</span>
-      <span class="detail-name">${escapeHtml(p.title)}</span>
-      <span class="detail-desc">${escapeHtml(p.subtitle || "")}</span>
-    </div>`;
-  });
+  hard.forEach(p => html += `<div class="detail-item"><span class="detail-badge hard">${tr("detail_hard", "СЛОЖНЫЙ")}</span><span class="detail-name">${escapeHtml(p.title)}</span><span class="detail-desc">${escapeHtml(p.subtitle || "")}</span></div>`);
+  easy.forEach(p => html += `<div class="detail-item"><span class="detail-badge easy">${tr("detail_easy", "ПРОСТОЙ")}</span><span class="detail-name">${escapeHtml(p.title)}</span><span class="detail-desc">${escapeHtml(p.subtitle || "")}</span></div>`);
   if (!html) html = `<div class="detail-empty">${tr("detail_empty", "Пока пусто")}</div>`;
   detailList.innerHTML = html;
 }
 
-// ========== ФОН ==========
 function initBackground() {
   const canvas = document.getElementById("bgCanvas");
   if (!canvas) return;
@@ -728,19 +759,11 @@ function initBackground() {
   function resize() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
   resize();
   window.addEventListener("resize", resize);
-
   const particles = [];
   const COUNT = Math.min(90, Math.floor(window.innerWidth / 18));
-  for (let i = 0; i < COUNT; i++) {
-    particles.push({
-      x: Math.random() * w, y: Math.random() * h,
-      vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4,
-      r: Math.random() * 1.8 + 0.6
-    });
-  }
+  for (let i = 0; i < COUNT; i++) particles.push({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4, r: Math.random() * 1.8 + 0.6 });
   let mouseX = w / 2, mouseY = h / 2;
   window.addEventListener("mousemove", (e) => { mouseX = e.clientX; mouseY = e.clientY; });
-
   function draw() {
     ctx.fillStyle = "rgba(10, 14, 26, 0.35)";
     ctx.fillRect(0, 0, w, h);
@@ -759,19 +782,17 @@ function initBackground() {
       ctx.fill();
       ctx.shadowBlur = 0;
     });
-    for (let i = 0; i < particles.length; i++) {
-      for (let j = i + 1; j < particles.length; j++) {
-        const a = particles[i], b = particles[j];
-        const dx = a.x - b.x, dy = a.y - b.y;
-        const d = Math.sqrt(dx * dx + dy * dy);
-        if (d < 130) {
-          ctx.beginPath();
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-          ctx.strokeStyle = `rgba(0, 255, 136, ${0.15 * (1 - d / 130)})`;
-          ctx.lineWidth = 0.7;
-          ctx.stroke();
-        }
+    for (let i = 0; i < particles.length; i++) for (let j = i + 1; j < particles.length; j++) {
+      const a = particles[i], b = particles[j];
+      const dx = a.x - b.x, dy = a.y - b.y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d < 130) {
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = `rgba(0, 255, 136, ${0.15 * (1 - d / 130)})`;
+        ctx.lineWidth = 0.7;
+        ctx.stroke();
       }
     }
     requestAnimationFrame(draw);
@@ -779,14 +800,9 @@ function initBackground() {
   draw();
 }
 
-function initPreloader() {
-  // Ничего не делаем — прелоадер скроется после загрузки постов
-}
+function initPreloader() {}
+function hidePreloader() { const p = document.getElementById("preloader"); if (p) p.classList.add("hide"); }
 
-function hidePreloader() {
-  const p = document.getElementById("preloader");
-  if (p) p.classList.add("hide");
-}
 function initScrollTop() {
   if (document.getElementById("scrollTop")) return;
   const btn = document.createElement("button");
@@ -805,27 +821,18 @@ function initCursorGlow() {
   });
 }
 
-// ========== ПЕРЕРИСОВКА ПРИ СМЕНЕ ЯЗЫКА ==========
 window.addEventListener("langChanged", () => {
   const feed = document.getElementById("feed");
-  if (feed) {
-    feed.innerHTML = "";
-    shownPosts = 0;
-    loadPosts();
-  }
+  if (feed) { renderTagFilterBar(); renderFeed(); }
   const login = accounts.getCurrentLogin();
   const userName = document.getElementById("userName");
-  if (userName) {
-    userName.textContent = login ? accounts.getDisplayName(login) : tr("login", "Войти");
-  }
+  if (userName) userName.textContent = login ? accounts.getDisplayName(login) : tr("login", "Войти");
   if (window.__refreshMenuLang) window.__refreshMenuLang();
   updateProjectsAchievement();
   initWorkDays();
 });
 
-// ========== ЗАПУСК ==========
 document.addEventListener("DOMContentLoaded", async function () {
-  // Сначала загружаем юзера (если токен есть)
   await accounts.loadCurrentUser();
 
   initBurger();
@@ -838,7 +845,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   initScrollTop();
   initCursorGlow();
 
-   loadPosts().then(() => {
+  await loadPosts().then(() => {
     initAdminPanel();
     initActiveNav();
     scrollToHashPost();
@@ -847,9 +854,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   if (typeof renderReviewsPreview === "function") renderReviewsPreview();
   if (typeof updateReviewsStats === "function") updateReviewsStats();
-
-  const loadMoreBtn = document.getElementById("loadMore");
-  if (loadMoreBtn) loadMoreBtn.addEventListener("click", loadPosts);
 
   window.addEventListener("hashchange", scrollToHashPost);
 });
